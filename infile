@@ -1,0 +1,17 @@
+load file1 file2 file3
+run 1
+pteall outfile1
+swapout 2
+pte 2 outfile1
+load file4
+swapin 2
+listpr
+pteall outfile1
+run 2
+kill 1
+pteall outfile1
+run 2
+run 3
+run 4
+run 1
+exit
