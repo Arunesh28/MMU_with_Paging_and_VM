@@ -1,4 +1,0 @@
-load filetest
-load filetest
-pte 2 outfile
-pteall
