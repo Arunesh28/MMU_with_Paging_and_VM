@@ -1,5 +1,4 @@
-load file
-load file
-load file
-load file
-listpr
+load filetest
+load filetest
+pte 2 outfile
+pteall

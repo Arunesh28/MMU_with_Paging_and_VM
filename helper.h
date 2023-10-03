@@ -1,16 +1,7 @@
 #include <string>
 #include <sstream>
 using namespace std;
-// int nwords(string str)
-// {
-//     stringstream sin(str);
-//     string word;
 
-//     int count = 0;
-//     while (sin >> word)
-//         count++;
-//     return count;
-// }
 
 int get_file_size(string filename)
 {

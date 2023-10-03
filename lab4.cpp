@@ -3,78 +3,10 @@
 #include <string.h>
 #include "helper.h"
 #include "cmd.h"
+#include "Process.h"
 using namespace std;
 
-// class pagetable_entry
-// {
-// public:
-//     int page_frame_no;
-//     // int valid_bit;
-//     // int present_bit;
-//     // int protection_bit;
-//     // int dirty_bit;
-// };
-// class PageTable
-// {
-// public:
-//     int no_pages;
-//     // int present;
-//     map<int,int> pagetable;
-//     PageTable()
-//     {
-//         no_pages = 0;
-//     }
-//     // PageTable(int n)
-//     // {
-//     //     no_pages = n;
-//     // }
-//     void set_no_page(int n)
-//     {
-//         no_pages = n;
-//     }
-//     void add_pte(int page_no, int page_frame)
-//     {
-//         // pagetable[page_no].page_frame_no = page_frame;
-//         // pagetable[page_no].valid_bit = 1;
-//         // pagetable[page_no].present_bit = present;
-//         pagetable[page_no] = page_frame;
-//     }
-//     // int is_process_in_MM()
-//     // {
-//     //     // checks if the pages of the process are in MM or VM
-//     //     if(pagetable[0].present_bit==1) return 1;
-//     //     else return 0;
-//     // }
-// };
-
-class Process
-{
-public:
-    string filename;
-    int size;
-    int pid;
-    // PageTable pt;
-    int present;
-    int lru_bit;
-    map<int, int> pagetable;
-    void set(string fname, int sz, int p, map<int, int> pt, int present_bit)
-    {
-        filename = fname;
-        size = sz;
-        pid = p;
-        pagetable = pt;
-        present = present_bit;
-        lru_bit = 0;
-    }
-    void add_pte(int page_no, int page_frame)
-    {
-        // pagetable[page_no].page_frame_no = page_frame;
-        // pagetable[page_no].valid_bit = 1;
-        // pagetable[page_no].present_bit = present;
-        pagetable[page_no] = page_frame;
-    }
-};
-
+fstream out;
 int MAIN_MEMORY_SIZE = 32;
 int VIRTUAL_MEMORY_SIZE = 32;
 int PAGE_SIZE = 512;
@@ -84,12 +16,8 @@ vector<vector<int>> MAIN_MEMORY;
 vector<vector<int>> VIRTUAL_MEMORY;
 vector<int> MM_TO_PID;
 vector<int> VM_TO_PID;
-// map<int, string> PID_TO_FILE;
-// map<int,int> PID_TO_SIZE;
-// list of free page frames in MM
 vector<int> MM_FREE_LIST;
 vector<int> VM_FREE_LIST;
-// map<int, PageTable> PID_PAGETABLE;
 map<int, Process> PROCESSES;
 int PID;
 
@@ -124,7 +52,6 @@ vector<pair<int, int>> process_lru_list()
     vector<pair<int, int>> vp;
     for (auto p : PROCESSES)
     {
-        // cout<<p.first<<"\t\t"<<p.second.present<<endl;
         if (p.second.present == 1)
         {
             vp.push_back({p.second.lru_bit, p.first});
@@ -196,6 +123,87 @@ void memory_store(int pid, int virtual_address, int value)
     MAIN_MEMORY[pageframe][offset] = value;
 }
 
+int check_valid_addr(int pid,int addr)
+{
+    int psize = PROCESSES[pid].size*PAGE_SIZE;
+    if(addr>=psize)
+    {
+        out<<"Invalid address "<<addr<<" !"<<endl;
+        return 0;
+    }
+    return 1;
+}
+
+void print_page_processes()
+{
+    vector<int> MM_processes;
+    for (int i = 0; i < MM_TO_PID.size(); i++)
+    {
+        if (MM_TO_PID[i] != 0)
+        {
+            MM_processes.push_back(MM_TO_PID[i]);
+        }
+    }
+    sort(MM_TO_PID.begin(), MM_TO_PID.end());
+    out << "processes in main memory are : ";
+    for (auto i : MM_processes)
+        out << i << " ";
+    out << endl;
+
+    vector<int> VM_processes;
+    for (int i = 0; i < VM_TO_PID.size(); i++)
+    {
+        if (VM_TO_PID[i] != 0)
+        {
+            VM_processes.push_back(VM_TO_PID[i]);
+        }
+    }
+    sort(VM_TO_PID.begin(), VM_TO_PID.end());
+    out << "processes in virtual memory are : ";
+    for (auto i : VM_processes)
+        out << i << " ";
+    out << endl;
+}
+
+void print_mm_vm_processes()
+{
+    vector<pair<int,int>> mm_processes;
+    vector<pair<int,int>> vm_processes;
+    for(auto p : PROCESSES)
+    {
+        if(p.second.present == 1)
+        {
+            mm_processes.push_back({p.second.size,p.second.pid});
+        }
+        else
+        {
+            vm_processes.push_back({p.second.size,p.second.pid});
+        }
+    }
+
+    sort(mm_processes.begin(),mm_processes.end());
+    out << "Main Memory Processes : ";
+    for(auto p : mm_processes) out << p.second << " ";
+    out<<endl;
+
+    sort(vm_processes.begin(),vm_processes.end());
+    out << "Virtual Memory Processes : ";
+    for(auto p : vm_processes) out << p.second << " ";
+    out<<endl;
+}
+
+void tim(){
+    time_t now = time(0);
+    tm* ltm = localtime(&now);
+    if((5 + ltm->tm_hour+(30 + ltm->tm_min)/60)>24)
+        out<<"Date : "<< 1+ltm->tm_mday<< "/"<< 1 + ltm->tm_mon<<"/"<< 1900 + ltm->tm_year << " ";
+    else 
+        out<<"Date : "<< ltm->tm_mday<< "/"<< 1 + ltm->tm_mon<<"/"<< 1900 + ltm->tm_year << " ";
+    out<< "Time: " << (5 + ltm->tm_hour+(30 + ltm->tm_min)/60)%24<< ":";  
+    out<< (30 + ltm->tm_min)%60<< ":";  
+    out<< ltm->tm_sec << endl;
+}
+
 void load(stringstream &s)
 {
     vector<string> files;
@@ -211,7 +219,7 @@ void load(stringstream &s)
         file.open(files[i]);
         if (!file)
         {
-            cout << files[i] << " could not be loaded - file does not exist" << endl;
+            out << files[i] << " could not be loaded - file does not exist" << endl;
             continue;
         }
         file.close();
@@ -225,9 +233,6 @@ void load(stringstream &s)
         case 1:
         {
             // add all the page into MM
-            // PageTable newpt;
-            // newpt.set_no_page(no_pages);
-            // newpt.present = 1;
             map<int, int> newpt;
             for (int i = 0; i < no_pages; i++)
             {
@@ -236,10 +241,7 @@ void load(stringstream &s)
                 MM_TO_PID[index] = PID;
                 newpt[i] = index;
             }
-            cout << files[i] << " is loaded in main memory and is assigned process id " << PID << endl;
-            // PID_TO_FILE[PID] = files[i];
-            // PID_PAGETABLE[PID] = newpt;
-            // PID_TO_SIZE[PID] = no_pages;
+            out << files[i] << " is loaded in main memory and is assigned process id " << PID << endl;
             Process p;
             p.set(files[i], no_pages, PID, newpt, 1);
             PROCESSES[PID] = p;
@@ -249,9 +251,6 @@ void load(stringstream &s)
         case 2:
         {
             // add all pages into VM
-            // PageTable newpt;
-            // newpt.set_no_page(no_pages);
-            // newpt.present = 0;
             map<int, int> newpt;
             for (int i = 0; i < no_pages; i++)
             {
@@ -260,10 +259,7 @@ void load(stringstream &s)
                 VM_TO_PID[index] = PID;
                 newpt[i] = index;
             }
-            cout << files[i] << " is loaded in virtual memory and is assigned process id " << PID << endl;
-            // PID_TO_FILE[PID] = files[i];
-            // PID_PAGETABLE[PID] = newpt;
-            // PID_TO_SIZE[PID] = no_pages;
+            out << files[i] << " is loaded in virtual memory and is assigned process id " << PID << endl;
             Process p;
             p.set(files[i], no_pages, PID, newpt, 0);
             PROCESSES[PID] = p;
@@ -273,7 +269,7 @@ void load(stringstream &s)
         }
         default:
         {
-            cout << files[i] << " could not be loaded - memory is full" << endl;
+            out << files[i] << " could not be loaded - memory is full" << endl;
             continue;
         }
         }
@@ -286,7 +282,7 @@ void kill(int pid)
     string filename = PROCESSES[pid].filename;
     if (filename == "")
     {
-        cout << "Invalid pid !" << endl;
+        out << "Invalid pid !" << endl;
         return;
     }
     if (PROCESSES[pid].present == 1)
@@ -308,47 +304,32 @@ void kill(int pid)
         }
     }
     PROCESSES.erase(pid);
+    out<<"Process "<<pid<<" killed \n";
 }
 
 void listpr()
 {
-    vector<int> MM_processes;
-    for (int i = 0; i < MM_TO_PID.size(); i++)
-    {
-        if (MM_TO_PID[i] != 0)
-        {
-            MM_processes.push_back(MM_TO_PID[i]);
-        }
-    }
-    sort(MM_TO_PID.begin(), MM_TO_PID.end());
-    cout << "processes in main memory are : ";
-    for (auto i : MM_processes)
-        cout << i << " ";
-    cout << endl;
-
-    vector<int> VM_processes;
-    for (int i = 0; i < VM_TO_PID.size(); i++)
-    {
-        if (VM_TO_PID[i] != 0)
-        {
-            VM_processes.push_back(VM_TO_PID[i]);
-        }
-    }
-    sort(VM_TO_PID.begin(), VM_TO_PID.end());
-    cout << "processes in virtual memory are : ";
-    for (auto i : VM_processes)
-        cout << i << " ";
-    cout << endl;
+    vector<pair<int,int>> all_processes;
+    for(auto p : PROCESSES) all_processes.push_back({p.second.size,p.second.pid});
+    sort(all_processes.begin(),all_processes.end());
+    out << "Processes sorted size wise : ";
+    for(auto p : all_processes) out << p.second << " ";
+    out<<endl;
 }
 
 void pte(int pid, string filename)
 {
     ofstream fout;
     fout.open(filename, ios::out | ios::app);
+    // tim();
+    fout<<"Process id : "<<pid<<endl;
+    fout<<"|\tPage Number |\t Page Frame Number\t|\n";
+    fout<<"|---------------|-----------------------|"<<endl;
     for (auto i : PROCESSES[pid].pagetable)
     {
-        fout << i.first << "\t" << i.second << endl;
+        fout<<"|\t\t" << i.first << "\t\t|\t\t\t" << i.second <<"\t\t\t|"<< endl;
     }
+    fout<<endl;
     fout.close();
 }
 
@@ -358,6 +339,21 @@ void pteall(string filename)
     // order (starting at pid 1).
     // If the file already exists, append the output to the file. Include the date/time
     // at the start of output data each time this command is invoked.
+    tim();
+    ofstream fout;
+    fout.open(filename, ios::out | ios::app);
+    for(auto p : PROCESSES)
+    {
+        fout<<"Process id : "<<p.first<<endl;
+        fout<<"|\tPage Number |\t Page Frame Number\t|\n";
+        fout<<"|---------------|-----------------------|"<<endl;
+        for (auto i : p.second.pagetable)
+        {
+            fout<<"|\t\t" << i.first << "\t\t|\t\t\t" << i.second <<"\t\t\t|"<< endl;
+        }
+        fout<<endl;
+    }
+    fout.close();
 }
 
 void swapout(int pid)
@@ -369,20 +365,20 @@ void swapout(int pid)
     string filename = PROCESSES[pid].filename;
     if (filename == "")
     {
-        cout << "Invalid pid !" << endl;
+        out << "Invalid pid !" << endl;
         return;
     }
     int vm_free_space = VM_FREE_LIST.size();
     if (vm_free_space < PROCESSES[pid].size)
     {
-        cout << "Invalid pid !" << endl;
+        out << "Invalid pid !" << endl;
         return;
     }
 
     // map<int,int> pt = PROCESSES[pid].pagetable;
     if (PROCESSES[pid].present == 0)
     {
-        cout << "process not in main memory !" << endl;
+        out << "process not in main memory !" << endl;
         return;
     }
     // pt.present = 0;
@@ -442,12 +438,12 @@ int swapin(int pid)
     }
     if (flag == 0)
     {
-        cout << "swapin error" << endl;
+        out << "swapin error" << endl;
         return 0;
     }
     if (temp > size_swapin + VM_FREE_LIST.size())
     {
-        cout << "swapin error" << endl;
+        out << "swapin error" << endl;
         return 0;
     }
     // swap processes in swapoutlist and swapin process
@@ -514,7 +510,7 @@ void run(int pid)
     string filename = PROCESSES[pid].filename;
     if (filename == "")
     {
-        cout << "Invalid pid !" << endl;
+        out << "Invalid pid !" << endl;
         return;
     }
     //  get the process into MM
@@ -523,7 +519,7 @@ void run(int pid)
         // if process not in MM then load the process into MM
         if (swapin(pid) == 0)
         {
-            cout << "run unsuccessfully !" << endl;
+            out << "run unsuccessfull !" << endl;
             return;
         }
     }
@@ -546,6 +542,11 @@ void run(int pid)
             int x, y, z;
             sscanf(line.c_str(), "add %d, %d, %d", &x, &y, &z);
             // cout<<"x="<<x<<",y="<<y<<",z="<<z<<endl;
+            if(check_valid_addr(pid,x)*check_valid_addr(pid,y)*check_valid_addr(pid,z) == 0)
+            {
+                // out<<"Invalid address !"<<endl;
+                continue;
+            }
             int xval = memory_load(pid, x);
             int yval = memory_load(pid, y);
             int zval = xval + yval;
@@ -561,6 +562,11 @@ void run(int pid)
             int x, y, z;
             sscanf(line.c_str(), "sub %d, %d, %d", &x, &y, &z);
             // cout<<"x="<<x<<",y="<<y<<",z="<<z<<endl;
+            if(check_valid_addr(pid,x)*check_valid_addr(pid,y)*check_valid_addr(pid,z) == 0)
+            {
+                // out<<"Invalid address !"<<endl;
+                continue;
+            }
             int xval = memory_load(pid, x);
             int yval = memory_load(pid, y);
             int zval = xval - yval;
@@ -573,6 +579,11 @@ void run(int pid)
             int a, y;
             sscanf(line.c_str(), "load %d, %d", &a, &y);
             // cout<<"a="<<a<<",y="<<y<<endl;
+            if(check_valid_addr(pid,y) == 0)
+            {
+                // out<<"Invalid address !"<<endl;
+                continue;
+            }
             memory_store(pid, y, a);
             break;
         }
@@ -582,13 +593,18 @@ void run(int pid)
             int x;
             sscanf(line.c_str(), "print %d", &x);
             // cout<<"x="<<x<<endl;
+            if(check_valid_addr(pid,x) == 0)
+            {
+                // out<<"Invalid address !"<<endl;
+                continue;
+            }
             int xval = memory_load(pid, x);
-            cout << xval << endl;
+            out <<"Value at "<<x<<" is "<< xval << endl;
             break;
         }
         default:
         {
-            cout << "Invalid opcode in file " << PROCESSES[pid].filename << endl;
+            out << "Invalid opcode in file " << PROCESSES[pid].filename << endl;
             break;
         }
         }
@@ -602,7 +618,7 @@ void print_memloc(int memloc)
     int bitmask = (1 << no_offset_bits) - 1;
     int offset = memloc & bitmask;
     int val = MAIN_MEMORY[pageframe][offset];
-    cout << "value at memloc " << memloc << " is " << val << endl;
+    out << "value at memloc " << memloc << " is " << val << endl;
 }
 
 void print(int memloc, int length)
@@ -618,6 +634,7 @@ void print(int memloc, int length)
 void exit()
 {
     // Exit the system and clean up all allocated memory.
+    out<<"Exiting the system"<<endl;
     exit(0);
 }
 
@@ -650,6 +667,8 @@ int main(int argc, char *argv[])
     init();
     fstream fd;
     fd.open(infile, ios::in);
+    
+    out.open(outfile,ios::app);
     string instr;
     while (getline(fd, instr))
     {
@@ -706,7 +725,7 @@ int main(int argc, char *argv[])
             int pid = get_arg(s);
             int flag = swapin(pid);
             if (flag == 1)
-                cout << "swapin successful !" << endl;
+                out << "swapin successful !" << endl;
             break;
         }
         case 9:
@@ -723,11 +742,12 @@ int main(int argc, char *argv[])
         }
         default:
         {
-            cout << "Invalid command " << opcode << endl;
+            out << "Invalid command " << opcode << endl;
             exit(0);
         }
         }
     }
-
+    fd.close();
+    out.close();
     return 0;
 }
